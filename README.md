@@ -24,3 +24,4 @@ Open http://localhost:3000.
 - `/`: public landing page
 - `/signup`, `/login`: email + password auth
 - `/app`: your private flashcards (logged-in only)
+Live app coming soon.
