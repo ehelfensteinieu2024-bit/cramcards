@@ -5,7 +5,7 @@ export default function LandingPage() {
     <>
       <section className="hero">
         <p className="eyebrow">For university students with exams coming up</p>
-        <h1>Turn your lecture notes into flashcards.</h1>
+        <h1>Turn your lecture notes into flashcards, built for university students</h1>
         <p className="lead">
           CramCards helps you write a question for every key idea in your notes, so you review a
           little each day before exams instead of cramming the night before.
