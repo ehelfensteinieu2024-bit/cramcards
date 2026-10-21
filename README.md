@@ -8,7 +8,7 @@ Built with Next.js (App Router) and Supabase (Auth + Postgres with Row Level Sec
 
 1. Install Node.js 20 or newer (https://nodejs.org, LTS installer).
 2. Create `.env.local` (see `.env.example`) with your Supabase URL and publishable key.
-3. Run `supabase/schema.sql` in Supabase > SQL Editor.
+3. Run `supabase/schema.sql`, then `supabase/subjects.sql`, in Supabase > SQL Editor.
 4. In Supabase > Authentication > Sign In / Providers > Email, turn **off** "Confirm email".
 5. Then:
 
@@ -23,4 +23,4 @@ Open http://localhost:3000.
 
 - `/`: public landing page
 - `/signup`, `/login`: email + password auth
-- `/app`: your private flashcards (logged-in only)
+- `/app`: your private flashcards, grouped into subjects (logged-in only). Cards saved without a subject go to "General".

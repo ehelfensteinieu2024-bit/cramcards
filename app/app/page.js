@@ -12,10 +12,20 @@ export default async function AppPage() {
 
   if (!user) redirect('/login');
 
-  const { data: cards, error } = await supabase
-    .from('cards')
-    .select('id, question, answer, created_at')
-    .order('created_at', { ascending: false });
+  const [cardsRes, subjectsRes] = await Promise.all([
+    supabase
+      .from('cards')
+      .select('id, question, answer, subject_id, created_at')
+      .order('created_at', { ascending: false }),
+    supabase.from('subjects').select('id, name').order('name'),
+  ]);
+  const error = cardsRes.error ?? subjectsRes.error;
 
-  return <CardsClient initialCards={cards ?? []} loadError={error?.message ?? ''} />;
+  return (
+    <CardsClient
+      initialCards={cardsRes.data ?? []}
+      initialSubjects={subjectsRes.data ?? []}
+      loadError={error?.message ?? ''}
+    />
+  );
 }
