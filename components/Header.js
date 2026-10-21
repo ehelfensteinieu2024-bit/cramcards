@@ -21,10 +21,7 @@ export default async function Header() {
               <LogoutButton />
             </>
           ) : (
-            <>
-              <Link href="/login" className="nav-link">Log in</Link>
-              <Link href="/signup" className="btn btn-small">Sign up</Link>
-            </>
+            <Link href="/login" className="nav-link">Log in</Link>
           )}
         </nav>
       </div>

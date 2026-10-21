@@ -1,20 +1,12 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
+import { sortSubjects } from '@/lib/subjects';
 
 const CARD_FIELDS = 'id, question, answer, subject_id, created_at';
 const ALL = 'all';
-
-// "General" first, then A–Z.
-function sortSubjects(list) {
-  return [...list].sort((a, b) => {
-    const ag = a.name.toLowerCase() === 'general';
-    const bg = b.name.toLowerCase() === 'general';
-    if (ag !== bg) return ag ? -1 : 1;
-    return a.name.localeCompare(b.name);
-  });
-}
 
 export default function CardsClient({ initialCards, initialSubjects, loadError }) {
   const [cards, setCards] = useState(initialCards);
@@ -30,6 +22,11 @@ export default function CardsClient({ initialCards, initialSubjects, loadError }
   const [saving, setSaving] = useState(false);
   const [addingSubject, setAddingSubject] = useState(false);
   const [revealed, setRevealed] = useState({});
+  // Only one card is edited or asked "Delete?" at a time.
+  const [editing, setEditing] = useState(null); // { id, question, answer, subject_id }
+  const [editError, setEditError] = useState('');
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
 
   const subjectName = Object.fromEntries(subjects.map((s) => [s.id, s.name]));
   const visibleCards = filter === ALL ? cards : cards.filter((c) => c.subject_id === filter);
@@ -60,7 +57,7 @@ export default function CardsClient({ initialCards, initialSubjects, loadError }
 
     setSaving(false);
     if (error) {
-      setError(error.message);
+      setError(`Sorry, your card could not be saved. ${error.message}`);
       return;
     }
     setCards((prev) => [data, ...prev]);
@@ -102,10 +99,43 @@ export default function CardsClient({ initialCards, initialSubjects, loadError }
     setCardSubject(id === ALL ? '' : id);
   }
 
+  function startEdit(card) {
+    setConfirmDeleteId(null);
+    setEditError('');
+    setEditing({ id: card.id, question: card.question, answer: card.answer, subject_id: card.subject_id });
+  }
+
+  async function handleSaveEdit(e) {
+    e.preventDefault();
+    const q = editing.question.trim();
+    if (!q) {
+      setEditError('The question cannot be empty.');
+      return;
+    }
+    setEditError('');
+    setSavingEdit(true);
+
+    const { data, error } = await createClient()
+      .from('cards')
+      .update({ question: q, answer: editing.answer.trim(), subject_id: editing.subject_id })
+      .eq('id', editing.id)
+      .select(CARD_FIELDS)
+      .single();
+
+    setSavingEdit(false);
+    if (error) {
+      setEditError(`Sorry, your changes could not be saved. ${error.message}`);
+      return;
+    }
+    setCards((prev) => prev.map((c) => (c.id === data.id ? data : c)));
+    setEditing(null);
+  }
+
   async function handleDelete(id) {
     const { error } = await createClient().from('cards').delete().eq('id', id);
+    setConfirmDeleteId(null);
     if (error) {
-      setError(error.message);
+      setError(`Sorry, that card could not be deleted. ${error.message}`);
       return;
     }
     setCards((prev) => prev.filter((c) => c.id !== id));
@@ -119,9 +149,17 @@ export default function CardsClient({ initialCards, initialSubjects, loadError }
 
   return (
     <div className="app-page">
-      <h1>My flashcards</h1>
+      <div className="page-head">
+        <h1>My flashcards</h1>
+        <Link
+          href={filter === ALL ? '/review' : `/review?subject=${filter}`}
+          className="btn btn-secondary"
+        >
+          Review
+        </Link>
+      </div>
 
-      <form onSubmit={handleSubmit} className="card-form stack">
+      <form onSubmit={handleSubmit} className="panel stack">
         <label className="field">
           <span>Question</span>
           <input
@@ -210,33 +248,107 @@ export default function CardsClient({ initialCards, initialSubjects, loadError }
       </h2>
 
       {visibleCards.length === 0 ? (
-        <p className="muted empty">
-          {cards.length === 0 ? 'No cards yet. Write your first question above.' : 'No cards in this subject yet.'}
-        </p>
+        <div className="empty-state">
+          <span className="empty-icon" aria-hidden="true">🗂️</span>
+          <p className="empty-title">Add your first flashcard</p>
+          <p className="muted">
+            {cards.length === 0
+              ? 'Type a question from today’s lecture in the form above and press “Save card”.'
+              : 'This subject has no cards yet. Write one in the form above.'}
+          </p>
+        </div>
       ) : (
         <ul className="card-list">
-          {visibleCards.map((card) => (
-            <li key={card.id} className="flashcard" data-testid="core-item">
-              {subjectName[card.subject_id] && <p className="flashcard-subject">{subjectName[card.subject_id]}</p>}
-              <p className="flashcard-q">{card.question}</p>
-              {revealed[card.id] && (
-                <p className="flashcard-a">{card.answer || <em className="muted">No answer yet.</em>}</p>
-              )}
-              <div className="flashcard-actions">
-                <button type="button" className="btn btn-small btn-secondary" onClick={() => toggle(card.id)}>
-                  {revealed[card.id] ? 'Hide answer' : 'Show answer'}
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-small btn-ghost"
-                  onClick={() => handleDelete(card.id)}
-                  aria-label={`Delete card: ${card.question}`}
-                >
-                  Delete
-                </button>
-              </div>
-            </li>
-          ))}
+          {visibleCards.map((card) =>
+            editing?.id === card.id ? (
+              <li key={card.id} className="flashcard" data-testid="core-item">
+                <form onSubmit={handleSaveEdit} className="stack">
+                  <label className="field">
+                    <span>Question</span>
+                    <input
+                      type="text"
+                      maxLength={500}
+                      value={editing.question}
+                      onChange={(e) => setEditing({ ...editing, question: e.target.value })}
+                      autoFocus
+                    />
+                  </label>
+                  <label className="field">
+                    <span>Answer</span>
+                    <textarea
+                      rows={3}
+                      value={editing.answer}
+                      onChange={(e) => setEditing({ ...editing, answer: e.target.value })}
+                    />
+                  </label>
+                  <label className="field">
+                    <span>Subject</span>
+                    <select
+                      value={editing.subject_id}
+                      onChange={(e) => setEditing({ ...editing, subject_id: e.target.value })}
+                    >
+                      {subjects.map((s) => (
+                        <option key={s.id} value={s.id}>{s.name}</option>
+                      ))}
+                    </select>
+                  </label>
+                  {editError && <p className="error" role="alert">{editError}</p>}
+                  <div className="flashcard-actions">
+                    <button type="submit" className="btn btn-small" disabled={savingEdit}>
+                      {savingEdit ? 'Saving…' : 'Save changes'}
+                    </button>
+                    <button type="button" className="btn btn-small btn-ghost" onClick={() => setEditing(null)}>
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              </li>
+            ) : (
+              <li key={card.id} className="flashcard" data-testid="core-item">
+                {subjectName[card.subject_id] && <p className="flashcard-subject">{subjectName[card.subject_id]}</p>}
+                <p className="flashcard-q">{card.question}</p>
+                {revealed[card.id] && (
+                  <p className="flashcard-a">{card.answer || <em>No answer yet.</em>}</p>
+                )}
+                {confirmDeleteId === card.id ? (
+                  <div className="flashcard-actions confirm" role="group" aria-label="Confirm delete">
+                    <span className="confirm-text">Delete?</span>
+                    <button type="button" className="btn btn-small btn-danger" onClick={() => handleDelete(card.id)}>
+                      Yes, delete
+                    </button>
+                    <button type="button" className="btn btn-small btn-ghost" onClick={() => setConfirmDeleteId(null)}>
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flashcard-actions">
+                    <button type="button" className="btn btn-small btn-secondary" onClick={() => toggle(card.id)}>
+                      {revealed[card.id] ? 'Hide answer' : 'Show answer'}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-small btn-ghost"
+                      onClick={() => startEdit(card)}
+                      aria-label={`Edit card: ${card.question}`}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-small btn-ghost btn-ghost-danger"
+                      onClick={() => {
+                        setEditing(null);
+                        setConfirmDeleteId(card.id);
+                      }}
+                      aria-label={`Delete card: ${card.question}`}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                )}
+              </li>
+            )
+          )}
         </ul>
       )}
     </div>

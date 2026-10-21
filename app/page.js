@@ -1,38 +1,39 @@
 import Link from 'next/link';
 
+const STEPS = [
+  { title: 'Write the question', text: 'After each lecture, turn every key idea into one short question.' },
+  { title: 'Add the answer', text: 'Add the answer now, or fill it in later. Sort cards by subject.' },
+  { title: 'Review before exams', text: 'Go through your cards one at a time and check what you remember.' },
+];
+
 export default function LandingPage() {
   return (
     <>
       <section className="hero">
-        <p className="eyebrow">For university students with exams coming up</p>
+        <p className="eyebrow">For university students</p>
         <h1>Turn your lecture notes into flashcards, built for university students</h1>
         <p className="lead">
-          CramCards helps you write a question for every key idea in your notes, so you review a
-          little each day before exams instead of cramming the night before.
+          Review a little after each lecture instead of cramming the night before exams.
         </p>
         <Link href="/signup" className="btn btn-large">Sign up, it&apos;s free</Link>
-        <p className="muted small">
-          Already have an account? <Link href="/login">Log in</Link>
-        </p>
       </section>
 
-      <section className="features" aria-label="How it works">
-        <div className="feature">
-          <span className="feature-num" aria-hidden="true">1</span>
-          <h2>Write the question</h2>
-          <p>Read your notes and type one short question per concept.</p>
-        </div>
-        <div className="feature">
-          <span className="feature-num" aria-hidden="true">2</span>
-          <h2>Add the answer</h2>
-          <p>Optional: add the answer now, or fill it in later.</p>
-        </div>
-        <div className="feature">
-          <span className="feature-num" aria-hidden="true">3</span>
-          <h2>Review anywhere</h2>
-          <p>Your private deck is saved to your account, on your laptop or phone.</p>
-        </div>
+      <section className="how" aria-labelledby="how-title">
+        <h2 id="how-title" className="section-title">How it works</h2>
+        <ol className="steps">
+          {STEPS.map((step, i) => (
+            <li key={step.title} className="step">
+              <span className="step-num" aria-hidden="true">{i + 1}</span>
+              <h3>{step.title}</h3>
+              <p>{step.text}</p>
+            </li>
+          ))}
+        </ol>
       </section>
+
+      <p className="privacy-note">
+        <span aria-hidden="true">🔒</span> Your cards are private. Only you can see them.
+      </p>
     </>
   );
 }

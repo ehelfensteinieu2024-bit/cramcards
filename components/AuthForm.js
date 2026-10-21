@@ -4,6 +4,17 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 
+// Turns Supabase auth errors into plain-language messages.
+function friendlyError(error) {
+  const msg = error.message.toLowerCase();
+  if (msg.includes('rate limit') || error.status === 429) return 'Too many attempts. Please wait a minute and try again.';
+  if (msg.includes('invalid login credentials')) return 'That email and password don’t match. Please try again.';
+  if (msg.includes('already registered')) return 'An account with this email already exists. Try logging in instead.';
+  if (msg.includes('password')) return 'Please choose a stronger password (at least 6 characters).';
+  if (msg.includes('email')) return 'Please enter a valid email address.';
+  return `Something went wrong: ${error.message}`;
+}
+
 // mode: 'signup' | 'login'. Also used as the data-testid prefix.
 export default function AuthForm({ mode }) {
   const isSignup = mode === 'signup';
@@ -23,7 +34,7 @@ export default function AuthForm({ mode }) {
       : await supabase.auth.signInWithPassword({ email, password });
 
     if (error) {
-      setError(error.message);
+      setError(friendlyError(error));
       setBusy(false);
       return;
     }
